@@ -22,12 +22,12 @@ output "bucket_region" {
 # KMS Key Outputs
 output "kms_key_id" {
   description = "ID of the KMS key used for bucket encryption"
-  value       = aws_kms_key.mechlib_images.key_id
+  value       = aws_kms_key.mechlib.key_id
 }
 
 output "kms_key_arn" {
   description = "ARN of the KMS key used for bucket encryption"
-  value       = aws_kms_key.mechlib_images.arn
+  value       = aws_kms_key.mechlib.arn
 }
 
 # IAM Role Outputs (if created)

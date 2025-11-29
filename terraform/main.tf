@@ -18,7 +18,7 @@ provider "aws" {
 data "aws_caller_identity" "current" {}
 
 # KMS key for S3 bucket encryption
-resource "aws_kms_key" "mechlib_images" {
+resource "aws_kms_key" "mechlib" {
   description             = "KMS key for mechlib image bucket encryption"
   deletion_window_in_days = 7
   enable_key_rotation     = true
@@ -30,9 +30,9 @@ resource "aws_kms_key" "mechlib_images" {
   }
 }
 
-resource "aws_kms_alias" "mechlib_images" {
-  name          = "alias/mechlib-images-${var.environment}"
-  target_key_id = aws_kms_key.mechlib_images.key_id
+resource "aws_kms_alias" "mechlib" {
+  name          = "alias/mechlib-${var.environment}"
+  target_key_id = aws_kms_key.mechlib.key_id
 }
 
 # Creates S3 Bucket for Mechlib Images
@@ -49,7 +49,7 @@ module "mechlib_bucket" {
   server_side_encryption_configuration = {
     rule = {
       apply_server_side_encryption_by_default = {
-        kms_master_key_id = aws_kms_key.mechlib_images.arn
+        kms_master_key_id = aws_kms_key.mechlib.arn
         sse_algorithm     = "aws:kms"
       }
       bucket_key_enabled = true
@@ -61,7 +61,7 @@ module "mechlib_bucket" {
   attach_deny_incorrect_kms_key_sse         = true
   attach_deny_unencrypted_object_uploads    = true
   attach_deny_ssec_encrypted_object_uploads = true
-  allowed_kms_key_arn                       = aws_kms_key.mechlib_images.arn
+  allowed_kms_key_arn                       = aws_kms_key.mechlib.arn
 
   # Security policies
   attach_deny_insecure_transport_policy = true
@@ -141,7 +141,6 @@ module "mechlib_bucket" {
 
   tags = {
     Project     = "mechlib"
-    Purpose     = "keyboard-images"
     Environment = var.environment
     ManagedBy   = "terraform"
   }
@@ -172,7 +171,7 @@ resource "aws_iam_role" "mechlib_app" {
   }
 }
 
-# IAM policy for S3 and KMS access
+# IAM policy for S3 and KMS access for application access
 resource "aws_iam_role_policy" "mechlib_s3_access" {
   count = var.create_app_role ? 1 : 0
 
@@ -209,7 +208,7 @@ resource "aws_iam_role_policy" "mechlib_s3_access" {
           "kms:Encrypt",
           "kms:GenerateDataKey"
         ]
-        Resource = aws_kms_key.mechlib_images.arn
+        Resource = aws_kms_key.mechlib.arn
       }
     ]
   })
