@@ -1,0 +1,65 @@
+# ExifTool User-Defined Configuration File
+# This file defines custom XMP tags for the mechlib project
+# Usage: exiftool -config .ExifTool_config [options] file.png
+# Example: exiftool -config ../.ExifTool_config -XMP-mechlib:materials="steel" file.png
+
+
+# ============================================================================
+# PART 1: Register the custom namespace with ExifTool
+# ============================================================================
+%Image::ExifTool::UserDefined = (
+    # Add our custom namespace to the XMP Main table
+    'Image::ExifTool::XMP::Main' => {
+        # Namespace short name (used in tag names like "XMP-mechlib:materials")
+        mechlib => {
+            # Point to the tag table defined below
+            SubDirectory => {
+                TagTable => 'Image::ExifTool::UserDefined::mechlib',
+            },
+        },
+    },
+);
+
+# ============================================================================
+# PART 2: Define the custom tags in the mechlib namespace
+# ============================================================================
+%Image::ExifTool::UserDefined::mechlib = (
+    # Define how this namespace appears in ExifTool groups
+    # Group 0: XMP (top-level type)
+    # Group 1: XMP-mechlib (namespace identifier used in commands)
+    # Group 2: Other (category)
+    GROUPS => { 0 => 'XMP', 1 => 'XMP-mechlib', 2 => 'Other' },
+
+    # XMP namespace URI - must be unique across all XMP namespaces
+    # This appears in the actual XMP data in the file
+    NAMESPACE => { 'mechlib' => 'http://mechlib.com/ns/1.0/' },
+
+    # Default data type for tags in this namespace
+    WRITABLE => 'string',
+
+    # ========================================================================
+    # CUSTOM TAG DEFINITIONS
+    # ========================================================================
+
+    # materials - An array of material types
+    # List => 'Bag' means unordered array (use 'Seq' for ordered)
+    # Usage: exiftool -XMP-mechlib:materials="steel" file.png
+    #        exiftool -XMP-mechlib:materials+="plastic" file.png
+    Materials => { List => 'Bag' },
+    Brand => { },
+    Project => { },
+    Person => { },
+    Mechanism => { },
+    Description => { },
+    Timestamp => { },
+
+
+    # Add more custom tags here following the same pattern:
+    # tagname => { List => 'Bag' },  # for arrays
+    # tagname => { },                # for simple string values
+);
+
+# ============================================================================
+# This line is required - tells Perl the module loaded successfully
+# ============================================================================
+1;

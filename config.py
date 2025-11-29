@@ -1,0 +1,66 @@
+import logging
+import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+from langchain_core.embeddings import Embeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_ollama import OllamaEmbeddings
+
+logger = logging.getLogger(__name__)
+load_dotenv()
+
+class Config:
+    def __init__(self):
+        # Pinecone Vector Database
+        self.pinecone_api_key:str | None = os.getenv('PINECONE_API_KEY')
+        self.pinecone_index_name: str | None = os.getenv('PINECONE_INDEX_NAME')
+        self.pinecone_region: str | None = os.getenv('PINECONE_REGION')
+
+        # Embedding
+        self.embedding_provider: str | None = os.getenv('EMBEDDING_PROVIDER')
+        self.embedding_model: Embeddings | None = self._get_embeddings()
+
+        # Project Root
+        self.project_root = self._get_project_root()
+
+    # Helper function to get project paths
+    def _get_project_root(self) -> Path:
+        """Get the root directory of this project"""
+        current_file = Path(__file__)
+        parent_directory = current_file
+        project_root = parent_directory.parent
+        return project_root
+
+    def _get_embeddings(self) -> Embeddings:
+        """
+        Get embeddings based on configured provider.
+
+        Supports: OpenAI, Google Gemini, Ollama
+        Returns the appropriate embedding model instance.
+        """
+        provider = self.embedding_provider
+        model = os.getenv('EMBEDDING_MODEL')
+
+        match provider:
+            case 'gemini':
+                logger.info(f"Using Google Gemini embeddings: {model}")
+                return GoogleGenerativeAIEmbeddings(
+                    model=model,
+                    google_api_key=os.getenv('GEMINI_API_KEY')
+                )
+
+            case 'ollama':
+                logger.info(f"Using Ollama embeddings: {model}")
+                return OllamaEmbeddings(
+                    model=model,
+                )
+
+            case _:
+                raise ValueError(
+                    f"Unknown embedding provider: {provider}. "
+                    f"Supported: 'gemini', 'ollama'"
+                )
+
+config = Config()
+
