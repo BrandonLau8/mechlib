@@ -55,7 +55,7 @@ class ImageProcessor:
     def __init__(self):
         self.exiftool = exiftool.ExifToolHelper()
 
-    def _get_metadata(self, image: Path):
+    def _get_metadata(self, path_list: list[Path]):
         et = self.exiftool
         tags = [
             'FileName',
@@ -68,7 +68,7 @@ class ImageProcessor:
             'Person',
             'Timestamp',
         ]
-        metadata:List[Dict[str,Any]] = et.get_tags(image, tags)
+        metadata:List[Dict[str,Any]] = et.get_tags(path_list, tags)
         for tag in metadata:
             logger.info(tag)
 
@@ -110,7 +110,7 @@ class ImageProcessor:
         else:
             return None
 
-    def extract_metadata(self, image:Path) -> Dict[str, Any]:
+    def extract_metadata(self, file_path:Path, s3_url:str) -> Dict[str, Any]:
 
         try:
             metadata = {
@@ -123,10 +123,12 @@ class ImageProcessor:
                 "project": None,
                 "person": None,
                 'timestamp': None,
+                "s3_url": s3_url
             }
+            logger.info(f'Adding S3 URL: {metadata["s3_url"]}')
             et = self.exiftool
             # Get all metadata from the image
-            for data in et.get_metadata(str(image)):
+            for data in et.get_metadata(str(file_path)):
                 for img_key, img_value in data.items():
                     if ':' in img_key:
                         img_key = img_key.split(':', 1)
@@ -137,11 +139,6 @@ class ImageProcessor:
                             # Remove file extension (.png, .jpg, etc.)
                             metadata["filename"] = Path(img_value).stem
                             logger.info(f'Extracted FileName: {metadata["filename"]}')
-
-                        # # Extract image path
-                        # if 'SourceFile' in img_key:
-                        #     metadata["sourcefile"] = image
-                        #     logger.info(f'Extracted SourceFile: {metadata["sourcefile"]}')
 
                         # Extract description
                         if 'Description' in img_key:
@@ -180,7 +177,7 @@ class ImageProcessor:
 
             return metadata
         except Exception as e:
-            logger.warning(f"Could not extract metadata from {image}: {str(e)}")
+            logger.warning(f"Could not extract metadata from {file_path}: {str(e)}")
             return {}
 
 
@@ -209,7 +206,7 @@ class ImageProcessor:
 
         return answers
 
-    def add_metadata(self, image: Path) -> bool:
+    def add_metadata(self, path_list: list[Path]) -> bool:
         answers = self._input_metadata()
 
         try:
@@ -229,12 +226,11 @@ class ImageProcessor:
                 f'-XMP-mechlib:Project={answers['project']}',
                 f'-XMP-mechlib:Person={answers['person']}',
                 f'-XMP-mechlib:Description={answers['description']}',
-                # f'-XMP-mechlib:sourcefile={str(image)}',
                 f'-XMP-mechlib:Timestamp={datetime.datetime.now().astimezone().strftime("%Y:%m:%d %H:%M:%S %Z")}',
                 '-overwrite_original',
-                str(image)
+
             ]
-            # cmd.extend(str(path) for path in images)
+            cmd.extend(str(path) for path in path_list)
             logger.info(f'Running command: {" ".join(cmd)}')
             result = subprocess.run(cmd, capture_output=True, text=True)
 
@@ -245,12 +241,12 @@ class ImageProcessor:
             logger.info(f'exiftool output: {result.stdout}')
             logger.info('✓ Tags written successfully!')
 
-            self._get_metadata(image)
+            self._get_metadata(path_list)
 
             return True
 
         except Exception as e:
 
-            logger.error(f"Error adding tags to {image}: {str(e)}")
+            logger.error(f"Error adding tags to {path_list}: {str(e)}")
 
             return False

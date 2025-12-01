@@ -12,6 +12,12 @@ load_dotenv()
 
 class Config:
     def __init__(self):
+
+        # AWS S3
+        self.aws_bucket_name:str | None = os.getenv('AWS_S3_BUCKET')
+        self.aws_profile:str | None = os.getenv('AWS_PROFILE')
+        self.aws_region:str | None = os.getenv('AWS_REGION', 'us-east-1')
+
         # Pinecone Vector Database
         self.pinecone_api_key:str | None = os.getenv('PINECONE_API_KEY')
         self.pinecone_index_name: str | None = os.getenv('PINECONE_INDEX_NAME')

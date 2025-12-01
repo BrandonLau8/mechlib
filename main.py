@@ -2,19 +2,24 @@
 # This is a sample Python script.
 import logging
 import os
+from pathlib import Path
+from platform import processor
 from typing import Any, Dict
 
 
 import exiftool
 import logger
 import questionary
-
+import requests
+from aiohttp.web_fileresponse import content_type
+from botocore.exceptions import ClientError
 
 from config import config
 from src.img_fetcher import ImageFetcher
 from prompt_toolkit.shortcuts import CompleteStyle
 
 from src.img_processor import ImageProcessor
+from src.s3_store import S3_StoreManager
 from src.vector_store import VectorStoreManager
 
 """
@@ -35,22 +40,39 @@ if __name__ == '__main__':
         # format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
 
-    # # Get Images to Add Metadata
-    # img_path = ImageFetcher.input_path()
-    # Upload images to S3 and get url to put into metadata
-    # images = ImageFetcher().get_images(img_path)
-
-    # Add Metadata to Images
+    fetcher = ImageFetcher()
+    s3_manager = S3_StoreManager()
     processor = ImageProcessor()
+    vector_manager = VectorStoreManager()
 
-    # for image in images:
-    #     if processor.add_metadata(image):
-    #         extracted_metadata = processor.extract_metadata(image)
-    #         documents = processor.make_documents(extracted_metadata)
-    #         vector_store = VectorStoreManager()
-    #         vector_store.add_documents(documents)
-    #     else:
-    #         logger.error('Image Processing Failed')
+    # Get Images to Add Metadata
+    path = fetcher.input_path()
 
-    test_dir = config.project_root / 'test'
-    processor.extract_metadata(test_dir)
+    # Get local_path
+    path_list = fetcher.get_images(path)
+    s3_uri_list = s3_manager.upload_all_files(path)
+
+
+    if len(path_list) == len(s3_uri_list):
+        try:
+            processor.add_metadata(path_list)
+            for i in range(len(path_list)):
+                file = path_list[i]
+                s3_uri = s3_uri_list[i]
+                s3_url = s3_manager.generate_presigned_url(s3_uri)
+
+                extracted_metadata = processor.extract_metadata(file, s3_url)
+                documents = processor.make_documents(extracted_metadata)
+                vector_manager.add_documents(documents)
+        except Exception as e:
+            logging.error(f'Processing failed: {str(e)}')
+    else:
+        logging.error('Local and S3 Paths Mismatched')
+
+
+    # path = config.project_root / 'test'
+    #
+    # for file_path in path.rglob('*'):
+    #     print(file_path.name)
+
+
