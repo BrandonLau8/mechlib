@@ -110,8 +110,15 @@ class S3_StoreManager:
 
     def generate_presigned_url(self, s3_uri:str, expiration: int = 3600) -> str:
         try:
+            # # Ensure s3_uri is a string
+            # if isinstance(s3_uri, bytes):
+            #     s3_uri = s3_uri.decode('utf-8')
+            #
+            # s3_uri = str(s3_uri)  # Ensure it's a string
+
             # Get the file type '.jpg', '.jpeg', '.png', '.webp'
             parsed = urlparse(s3_uri)
+
             s3_key = parsed.path.lstrip('/')
             content_type, _ = mimetypes.guess_type(s3_uri)
             url = self.s3_client.generate_presigned_url(

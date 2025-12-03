@@ -22,6 +22,7 @@ def generate_image_gallery(bucket: str, prefix: str = 'test/', expires_in: int =
             )
             image_urls.append({'key': key, 'url': url})
 
+
     # Generate image HTML
     images_html = '\n'.join([
         f'        <div class="gallery-item">\n'

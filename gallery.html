@@ -1,0 +1,77 @@
+ <!DOCTYPE html>
+  <html>
+  <head>
+      <title>Mechlib Image Gallery</title>
+      <style>
+          body {
+              font-family: Arial, sans-serif;
+              max-width: 1200px;
+              margin: 0 auto;
+              padding: 20px;
+              background-color: #f5f5f5;
+          }
+          h1 {
+              text-align: center;
+              color: #333;
+              margin-bottom: 30px;
+          }
+          .gallery {
+              display: grid;
+              grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+              gap: 20px;
+          }
+          .gallery-item {
+              background: white;
+              border-radius: 8px;
+              overflow: hidden;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+              transition: transform 0.2s;
+          }
+          .gallery-item:hover {
+              transform: translateY(-5px);
+              box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          }
+          .gallery-item img {
+              width: 100%;
+              height: auto;
+              display: block;
+          }
+          .gallery-item p {
+              padding: 10px;
+              margin: 0;
+              font-size: 14px;
+              color: #666;
+              text-align: center;
+          }
+      </style>
+  </head>
+  <body>
+      <h1>Mechlib Image Gallery</h1>
+      <div class="gallery">
+                  <div class="gallery-item">
+            <img src="https://bl-mechlib-dev.s3.amazonaws.com/myobuddy_teardown.jpg?response-content-type=image%2Fjpeg&response-content-disposition=inline&AWSAccessKeyId=AKIAZI2LHRW5PSOXBLMM&Signature=qu0HqwhuH7MdBpMAohHKqIxihP0%3D&Expires=1764742417" alt="myobuddy_teardown">
+            <p>myobuddy teardown overview</p>
+        </div>
+        <div class="gallery-item">
+            <img src="https://bl-mechlib-dev.s3.amazonaws.com/hyperice_teardown.jpg?response-content-type=image%2Fjpeg&response-content-disposition=inline&AWSAccessKeyId=AKIAZI2LHRW5PSOXBLMM&Signature=4NDZZHGFCau9g8iDxrjHuz35nh0%3D&Expires=1764742417" alt="hyperice_teardown">
+            <p>hyperice teardown overview</p>
+        </div>
+        <div class="gallery-item">
+            <img src="https://bl-mechlib-dev.s3.amazonaws.com/triggerpoint_teardown.jpeg?response-content-type=image%2Fjpeg&response-content-disposition=inline&AWSAccessKeyId=AKIAZI2LHRW5PSOXBLMM&Signature=gGx7eCs3nZ%2Bn9UIDrg4eJGov6xQ%3D&Expires=1764742417" alt="triggerpoint_teardown">
+            <p>triggerpoint teardown</p>
+        </div>
+        <div class="gallery-item">
+            <img src="https://bl-mechlib-dev.s3.amazonaws.com/theragun_teardown.jpg?response-content-type=image%2Fjpeg&response-content-disposition=inline&AWSAccessKeyId=AKIAZI2LHRW5PSOXBLMM&Signature=6XlAoLbCPDuDml77cCrFMatX%2BoY%3D&Expires=1764742417" alt="theragun_teardown">
+            <p>theragun teardown overview</p>
+        </div>
+        <div class="gallery-item">
+            <img src="https://bl-mechlib-dev.s3.amazonaws.com/prowlr_teardown.jpg?response-content-type=image%2Fjpeg&response-content-disposition=inline&AWSAccessKeyId=AKIAZI2LHRW5PSOXBLMM&Signature=ZZI4kcWS1XzE4xOH8%2FQmUC21pyY%3D&Expires=1764742417" alt="prowlr_teardown">
+            <p>prowlr teardown overview</p>
+        </div>
+        <div class="gallery-item">
+            <img src="https://bl-mechlib-dev.s3.amazonaws.com/zota_teardown.jpg?response-content-type=image%2Fjpeg&response-content-disposition=inline&AWSAccessKeyId=AKIAZI2LHRW5PSOXBLMM&Signature=iqa%2FbtHPesOmBUmlRySbkHB4wT0%3D&Expires=1764742417" alt="zota_teardown">
+            <p>zota teardown overview</p>
+        </div>
+      </div>
+  </body>
+  </html>

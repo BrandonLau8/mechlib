@@ -110,7 +110,7 @@ class ImageProcessor:
         else:
             return None
 
-    def extract_metadata(self, file_path:Path, s3_url:str) -> Dict[str, Any]:
+    def extract_metadata(self, file_path:Path, s3_url:str, s3_uri:str) -> Dict[str, Any]:
 
         try:
             metadata = {
@@ -123,7 +123,8 @@ class ImageProcessor:
                 "project": None,
                 "person": None,
                 'timestamp': None,
-                "s3_url": s3_url
+                "s3_url": s3_url,
+                "s3_uri": s3_uri
             }
             logger.info(f'Adding S3 URL: {metadata["s3_url"]}')
             et = self.exiftool

@@ -61,7 +61,7 @@ if __name__ == '__main__':
                 s3_uri = s3_uri_list[i]
                 s3_url = s3_manager.generate_presigned_url(s3_uri)
 
-                extracted_metadata = processor.extract_metadata(file, s3_url)
+                extracted_metadata = processor.extract_metadata(file, s3_url, s3_uri)
                 documents = processor.make_documents(extracted_metadata)
                 vector_manager.add_documents(documents)
         except Exception as e:
@@ -69,10 +69,5 @@ if __name__ == '__main__':
     else:
         logging.error('Local and S3 Paths Mismatched')
 
-
-    # path = config.project_root / 'test'
-    #
-    # for file_path in path.rglob('*'):
-    #     print(file_path.name)
-
-
+    # vector_manager = VectorStoreManager()
+    # vector_manager.search()
