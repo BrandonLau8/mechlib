@@ -1,0 +1,93 @@
+services: # template on how to run containers
+  postgres: # service name used by other services in this file
+    image: pgvector/pgvector:0.8.1-pg17 # Repo name : Tag with version
+    container_name: mechlib-postgres
+    environment:
+      POSTGRES_USER: ${PSQL_USER}
+      POSTGRES_PASSWORD: ${PSQL_PASSWORD} # From .env or shell
+      POSTGRES_DB: ${PSQL_DATABASE}
+#    ports:
+#      - "127.0.0.1:5432:5432" # Only accessible from localhost.
+#      # External apps should use pgbouncer (port 6432), not direct access
+    volumes: # Mounts points for persistent data
+      - postgres_data:/var/lib/postgresql/data # Named Volume (defined below) : psql's data directory inside container
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql # File in my directory : Special dir psql check
+    restart: unless-stopped # Restart automatically, UNLESS I manually stopped it
+    shm_size: 256mb # Shared memory size. Default Docker 64MB (but too small)
+    networks:
+      - mechlib-network
+
+
+  pgbouncer:
+    image: pgbouncer/pgbouncer:latest
+    container_name: mechlib-pgbouncer
+    environment:
+      DATABASES_HOST: postgres # using postgres service above
+      DATABASES_PORT: 5432
+      DATABASES_USER: ${PSQL_USER}
+      DATABASES_PASSWORD: ${PSQL_PASSWORD}
+      DATABASES_DBNAME: ${PSQL_DATABASE}
+
+      # transaction = Return connection to pool after each transaction. Perfect for REST APIs (stateless requests)
+      # session = Hold connection for entire client session (no pooling benefit)
+      # statement = Return after each query (breaks transactions)
+      PGBOUNCER_POOL_MODE: transaction
+
+      # Maximum client connections TO pgbouncer
+      PGBOUNCER_MAX_CLIENT_CONN: 100 # Support up to 100 simultaneous app connections. 1 User can make multiple connections
+
+      # Connections FROM pgbouncer TO postgres
+      PGBOUNCER_DEFAULT_POOL_SIZE: 20 # PgBouncer maintains max 20 real database connections.
+
+    ports:
+      - "0.0.0.0:6432:6432"  # ← Allows external connections from your app
+      # NOT 127.0.0.1:6432:6432 (would only work locally)
+    depends_on:
+      - postgres # Ensures database is ready before connection pooler starts
+    restart: unless-stopped
+    networks:
+      - mechlib-network  # Same network
+
+  api:
+    build: ../backend
+    container_name: mechlib-api
+    env_file:
+      - ../.env  # Load main .env file
+    ports:
+      - "0.0.0.0:8000:8000"  # Expose API
+    depends_on:
+      - pgbouncer
+    restart: unless-stopped
+    networks:
+      - mechlib-network # Same network
+    volumes:
+      - ../backend:/app  # For development (optional)
+
+volumes: # Mounts
+  postgres_data:
+
+networks: # Docker networks allow containers to communicate with each other.
+  mechlib-network:
+    driver: bridge # Creates the network
+
+
+#   Your FastAPI App
+#         │
+#         │ Connects to localhost:6432
+#         │ (100 possible client connections)
+#         ▼
+#     PgBouncer Container
+#         │
+#         │ Pools to 20 connections
+#         │ transaction mode
+#         ▼
+#     PostgreSQL Container
+#         │
+#         │ + pgvector extension
+#         │ Stores data in postgres_data volume
+#         ▼
+#     Persistent Storage
+#     (survives container restarts)
+
+#  100 clients waiting  →  pgbouncer queues them  →  20 connections to postgres
+#                          (reuses connections)

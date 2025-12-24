@@ -9,7 +9,7 @@ from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
-from src.vector_store import VectorStoreManager
+from backend.src.mechlib.vector_store import VectorStoreManager
 
 # Configure logging to file to avoid interfering with stdio (MCP uses stdio)
 logging.basicConfig(
@@ -69,14 +69,13 @@ def search_images(query: str, k: int = 3, score_threshold: float = 0.7) -> str:
             logger.info(f"Filtered to {len(results)}/{len(results_with_scores)} results above threshold {score_threshold}")
 
         # Generate gallery
-        from src.s3_store import S3_StoreManager
+        from backend.src.mechlib.s3_store import S3_StoreManager
         s3_client = S3_StoreManager()
 
         image_urls = []
         for doc in results:
             url = s3_client.generate_presigned_url(
                 s3_uri=doc.metadata.get('s3_uri'),
-                expiration=3600
             )
             image_urls.append(url)
 
@@ -90,7 +89,7 @@ def search_images(query: str, k: int = 3, score_threshold: float = 0.7) -> str:
         ])
 
         # Read template and substitute images
-        template_path = Path('./templates/gallery.html')
+        template_path = Path('templates/gallery.html')
         template = template_path.read_text()
         html = template.replace('{{IMAGES}}', images_html)
 

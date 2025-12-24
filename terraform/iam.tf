@@ -3,129 +3,80 @@ resource "aws_iam_user" "mechlib_user" {
   name = "mechlib-${var.environment}"
 
   tags = {
-    Project     = "mechlib"
-    Environment = var.environment
-    ManagedBy   = "terraform"
-    Purpose     = "Application access to S3 bucket"
+    Purpose = "Application access to S3 bucket"
   }
 }
 
-# Access keys for programmatic access
+# Creates AWS access keys (Access Key ID + Secret Access Key) for the IAM user when you run terraform apply.
+# Long Lived
 resource "aws_iam_access_key" "mechlib_user" {
   user = aws_iam_user.mechlib_user.name
 }
 
 
-# IAM Policy for S3 and KMS access
-resource "aws_iam_user_policy" "mechlib_s3_kms_access" {
-  name = "mechlib-s3-kms-access"
+# IAM Policy for S3 access
+# Grants least-privilege permissions for application to work with S3 objects
+resource "aws_iam_user_policy" "mechlib_s3_access" {
+  name = "mechlib-s3-access"
   user = aws_iam_user.mechlib_user.name
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "ListBucket"
+        Sid    = "BucketLevelOperations"
         Effect = "Allow"
         Action = [
-          # "s3:ListBucket",
-          # "s3:GetBucketLocation",
-          "s3:*"
-
+          "s3:ListBucket",        # List objects in bucket
+          "s3:GetBucketLocation"  # Get bucket region (for presigned URLs)
         ]
-        Resource = module.mechlib_bucket.s3_bucket_arn
+        Resource = module.mechlib_bucket.s3_bucket_arn # Bucket
       },
       {
-        Sid    = "ObjectAccess"
+        Sid    = "ObjectLevelOperations"
         Effect = "Allow"
         Action = [
-          # "s3:GetObject",
-          # "s3:PutObject",
-          # "s3:DeleteObject",
-          # "s3:GetObjectVersion"
-          "s3:*"
+          "s3:GetObject",    # Download/read objects (for presigned URLs)
+          "s3:PutObject",    # Upload objects
+          "s3:DeleteObject"  # Delete objects
         ]
-        Resource = "${module.mechlib_bucket.s3_bucket_arn}/*"
-      },
-      # {
-      #   Sid    = "KMSAccess"
-      #   Effect = "Allow"
-      #   Action = [
-      #     "kms:Decrypt",
-      #     "kms:Encrypt",
-      #     "kms:GenerateDataKey",
-      #     "kms:DescribeKey"
-      #   ]
-      #   Resource = aws_kms_key.mechlib.arn
-      # }
+        Resource = "${module.mechlib_bucket.s3_bucket_arn}/*" # Object
+      }
     ]
   })
 }
 
-# # IAM role for application access (optional - for EC2/Lambda)
-# resource "aws_iam_role" "mechlib_app" {
-#   count = var.create_app_role ? 1 : 0
-#
-#   name = "mechlib-app-${var.environment}"
-#
-#   assume_role_policy = jsonencode({
-#     Version = "2012-10-17"
-#     Statement = [
-#       {
-#         Action = "sts:AssumeRole"
-#         Effect = "Allow"
-#         Principal = {
-#           Service = "ec2.amazonaws.com"
-#         }
-#       }
-#     ]
-#   })
-#
-#   tags = {
-#     Project     = "mechlib"
-#     Environment = var.environment
-#   }
+# IAM User Outputs
+output "iam_user_name" {
+  description = "Name of the IAM user"
+  value       = aws_iam_user.mechlib_user.name
+}
+
+output "iam_user_arn" {
+  description = "ARN of the IAM user"
+  value       = aws_iam_user.mechlib_user.arn
+}
+
+# output "iam_access_key_id" {
+#   description = "Access key ID for the IAM user"
+#   value       = aws_iam_access_key.mechlib_user.id
+#   sensitive   = true
 # }
 #
-# # IAM policy for S3 and KMS access for application access
-# resource "aws_iam_role_policy" "mechlib_s3_access" {
-#   count = var.create_app_role ? 1 : 0
-#
-#   name = "mechlib-s3-access"
-#   role = aws_iam_role.mechlib_app[0].id
-#
-#   policy = jsonencode({
-#     Version = "2012-10-17"
-#     Statement = [
-#       {
-#         Sid    = "S3BucketAccess"
-#         Effect = "Allow"
-#         Action = [
-#           "s3:ListBucket",
-#           "s3:GetBucketLocation"
-#         ]
-#         Resource = module.mechlib_bucket.s3_bucket_arn
-#       },
-#       {
-#         Sid    = "S3ObjectAccess"
-#         Effect = "Allow"
-#         Action = [
-#           "s3:GetObject",
-#           "s3:PutObject",
-#           "s3:DeleteObject"
-#         ]
-#         Resource = "${module.mechlib_bucket.s3_bucket_arn}/*"
-#       },
-#       {
-#         Sid    = "KMSAccess"
-#         Effect = "Allow"
-#         Action = [
-#           "kms:Decrypt",
-#           "kms:Encrypt",
-#           "kms:GenerateDataKey"
-#         ]
-#         Resource = aws_kms_key.mechlib.arn
-#       }
-#     ]
-#   })
+# output "iam_secret_access_key" {
+#   description = "Secret access key for the IAM user"
+#   value       = aws_iam_access_key.mechlib_user.secret
+#   sensitive   = true
 # }
+
+# Just copy/paste directly into ~/.aws/credentials
+output "aws_credentials_example" {
+  description = "Example ~/.aws/credentials entry"
+  value = <<-EOT
+    [mechlib-dev]
+    aws_access_key_id = ${aws_iam_access_key.mechlib_user.id}
+    aws_secret_access_key = ${aws_iam_access_key.mechlib_user.secret}
+  EOT
+  sensitive = true
+  }
+

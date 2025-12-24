@@ -1,8 +1,38 @@
+# Markdown Files
+docs/aws_setup.md
+docs/frontend.md
+docs/infrastructure_plan.md
+docs/maybe_django.md
+docs/mechlib_claudedraft.md
+docs/setup_mcp.md
+docs/Terraform_S3.md
+docs/README-secrets.md
 
-
+# Generated output files
 *.csv
-*.md
+gallery.html
+
+# Test directory
 test/
+
+# macOS
+.DS_Store
+
+# SSH Keys and credentials
+*.pem
+*.key
+ssh_to_ec2.sh
+
+# Deployment scripts (uncomment if these are personal/environment-specific)
+# backup.sh
+# deploy.sh
+# create_ec2_keypair.sh
+
+# Docker sensitive files
+docker/init.sql
+
+# Terraform lock file (optional - some teams commit this, others don't)
+# .terraform.lock.hcl
 
 ### Terraform template
 # Local .terraform directories
@@ -22,6 +52,10 @@ crash.*.log
 # to change depending on the environment.
 *.tfvars
 *.tfvars.json
+
+# AWS Secrets Manager JSON files (keep .template files)
+secrets.json
+terraform/secrets.json.template
 
 # Ignore override files as they are usually used to override resources locally and so
 # are not checked in
@@ -209,5 +243,5 @@ cython_debug/
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
-#.idea/
+.idea/
 

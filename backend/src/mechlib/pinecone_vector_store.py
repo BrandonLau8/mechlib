@@ -7,8 +7,8 @@ from langchain_core.documents import Document
 from langchain_pinecone import PineconeVectorStore
 
 
-from config import config
-from src.s3_store import S3_StoreManager
+from backend.config import config
+from backend.src.mechlib.s3_store import S3_StoreManager
 
 logger = logging.getLogger(__name__)
 
@@ -44,16 +44,13 @@ class VectorStoreManager:
 
 
 
-    def add_documents(self, docs: List[Document]) -> List[str]:
+    def add_documents(self, docs: List[Document]):
         if not docs:
             logger.warning('No docs to add')
-            return []
 
         logger.info(f'Adding {len(docs)} docs to vector store...')
         ids = self.vector_store.add_documents(docs)
         logger.info(f'Successfully added {len(ids)} documents')
-
-        return ids
 
 
     # def _get_embedding_dimension(provider: str) -> int:

@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 import boto3
 from botocore.exceptions import ClientError
 
-from config import config
+from backend.config import config
 
 logger = logging.getLogger(__name__)
 
@@ -42,73 +42,40 @@ class S3_StoreManager:
 
         self.s3_client = boto3.client('s3', region_name=self.aws_region)
         self.s3_resource = boto3.resource('s3', region_name=self.aws_region)
+        self.expiration:int = 3600
+        self.img_data:dict = {}
 
 
-    def upload_file(self, file_path: Path, s3_key:str) -> str:
+    def add_files(self, processed_files: list[Path], directory:Optional[str]):
         try:
-            # Get the file type '.jpg', '.jpeg', '.png', '.webp'
-            content_type, _ = mimetypes.guess_type(file_path.name)
-            self.s3_client.upload_file(
-                file_path,
-                self.aws_bucket_name,
-                s3_key,
-                ExtraArgs={
-                    'ContentType': content_type,
-                    'ContentDisposition': 'inline'
-                }
-            )
-            s3_uri = f"s3://{self.aws_bucket_name}/{s3_key}"
-            logger.info(f"Uploaded {file_path.name} to {s3_uri}")
-            return s3_uri
+            for file in processed_files:
+                # If dir uploaded make into s3_key else use file name
+                if directory:
+                    s3_key = directory
+                else:
+                    s3_key = file.name
+
+                # Get the file type '.jpg', '.jpeg', '.png', '.webp'
+                content_type, _ = mimetypes.guess_type(file.name)
+                self.s3_client.upload_file(
+                    file,
+                    self.aws_bucket_name,
+                    s3_key,
+                    ExtraArgs={
+                        'ContentType': content_type,
+                        'ContentDisposition': 'inline'
+                    }
+                )
+                s3_uri = f"s3://{self.aws_bucket_name}/{s3_key}"
+
+                self.img_data[file.name] = s3_uri
+
+                logger.info(f"Uploaded {file.name} to {s3_uri}")
 
         except ClientError as e:
-            logger.error(f"Failed to upload {file_path}: {e}")
-            raise
+            logger.error(f"Failed to upload: {e}")
 
-    def upload_all_files(self, path: Path) -> list[str]:
-        if not path.exists():
-            raise FileNotFoundError(f'File not found: {path}')
-
-        uploaded_files = []
-
-        if path.is_file():
-            try:
-                s3_key = path.name
-                s3_uri = self.upload_file(path, s3_key)
-                uploaded_files.append(s3_uri)
-                return uploaded_files
-            except Exception as e:
-                logger.error(f"Failed to upload {path}: {e}")
-
-        if path.is_dir():
-            image_extensions = {'.jpg', '.jpeg', '.png', '.webp'}
-            try:
-                # Recursively find all image files
-                for file_path in path.rglob('*'):
-                    if file_path.is_file() and file_path.suffix.lower() in image_extensions:
-                        # Calculate relative path from folder root
-                        relative_path = file_path.relative_to(path)
-                        s3_key = f"{path.name}/{relative_path}"
-
-                        s3_uri = self.upload_file(
-                            file_path.absolute(),
-                            s3_key)
-                        uploaded_files.append(s3_uri)
-
-
-            except Exception as e:
-                logger.error(f"Failed to upload {file_path}: {e}")
-
-
-            logger.info(f"Uploaded {len(uploaded_files)} files from {path}")
-            return uploaded_files
-
-        else:
-            logger.error(f'Error')
-            return []
-
-
-    def generate_presigned_url(self, s3_uri:str, expiration: int = 3600) -> str:
+    def generate_presigned_url(self, s3_uri:str) -> str:
         try:
             # # Ensure s3_uri is a string
             # if isinstance(s3_uri, bytes):
@@ -129,14 +96,17 @@ class S3_StoreManager:
                     'ResponseContentType': content_type,
                     'ResponseContentDisposition': 'inline'
                 },
-                ExpiresIn=expiration
+                ExpiresIn=self.expiration
             )
-            logger.info(f"Generated presigned URL for {s3_uri} (valid for {expiration}s)")
+            logger.info(f"Generated presigned URL for {s3_uri} (valid for {self.expiration}s)")
             return url
 
         except ClientError as e:
             logger.error(f"Failed to generate presigned URL for {s3_uri}: {e}")
             raise
+
+
+
 
     # def list_objects(self, prefix: str = '') -> list[str]:
     #     try:

@@ -33,7 +33,7 @@ def generate_image_gallery(bucket: str, prefix: str = 'test/', expires_in: int =
     ])
 
     # Read template and substitute images
-    template_path = Path('../templates/gallery.html')
+    template_path = Path('../../templates/gallery.html')
     template = template_path.read_text()
     html = template.replace('{{IMAGES}}', images_html)
 
