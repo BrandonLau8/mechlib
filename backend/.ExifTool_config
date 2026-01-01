@@ -46,6 +46,7 @@
     # Usage: exiftool -XMP-mechlib:materials="steel" file.png
     #        exiftool -XMP-mechlib:materials+="plastic" file.png
     Materials => { List => 'Bag' },
+    Process => { List => 'Bag' },
     Brand => { },
     Project => { },
     Person => { },

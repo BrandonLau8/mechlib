@@ -1,8 +1,5 @@
 import logging
-from pathlib import Path
-from typing import Any
 
-import questionary
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +9,7 @@ class Metadata:
         self.description: str | None = None
         self.brand: str | None = None
         self.materials: list | None = []
+        self.process: list | None = []
         self.mechanism: str | None = None
         self.project: str | None = None
         self.person: str | None = None
@@ -27,6 +25,7 @@ class Metadata:
         self.description = data.get('description')
         self.brand = data.get('brand')
         self.materials = data.get('materials', [])
+        self.process = data.get('process', [])
         self.mechanism = data.get('mechanism')
         self.project = data.get('project')
         self.person = data.get('person')
@@ -45,36 +44,15 @@ class Metadata:
             'description': self.description,
             'brand': self.brand,
             'materials': self.materials,
+            'process': self.process,
             'mechanism': self.mechanism,
             'project': self.project,
             'person': self.person,
-            's3_url': None,
-            's3_uri': None
+            's3_url': self.s3_url,
+            's3_uri': self.s3_uri
         }
 
-    @staticmethod
-    def from_terminal() -> dict:
-            answers = questionary.form(
-                description=questionary.text('Description: ', multiline=True),
-                brand=questionary.text('Brand: '),
 
-                materials=questionary.checkbox(
-                    'Materials: ',
-                    choices=[
-                        'Plastic',
-                        'Metal',
-                        'Silicone'
-                    ],
-                ),
-
-                mechanism=questionary.text('Mechanism: '),
-                project=questionary.text('Project: '),
-                person=questionary.text('Person: ')
-
-            ).ask()
-            logging.info(answers)
-
-            return answers
 
     # def _validate_metadata(self) -> bool:
     #     nonnulls = ['description', 'person']

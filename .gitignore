@@ -1,12 +1,5 @@
 # Markdown Files
-docs/aws_setup.md
-docs/frontend.md
-docs/infrastructure_plan.md
-docs/maybe_django.md
-docs/mechlib_claudedraft.md
-docs/setup_mcp.md
-docs/Terraform_S3.md
-docs/README-secrets.md
+docs
 
 # Generated output files
 *.csv
@@ -14,6 +7,7 @@ gallery.html
 
 # Test directory
 test/
+**/extraction_test/
 
 # macOS
 .DS_Store
@@ -23,6 +17,9 @@ test/
 *.key
 ssh_to_ec2.sh
 
+# MCP Configuration (contains credentials)
+.mcp.json
+
 # Deployment scripts (uncomment if these are personal/environment-specific)
 # backup.sh
 # deploy.sh
@@ -30,6 +27,8 @@ ssh_to_ec2.sh
 
 # Docker sensitive files
 docker/init.sql
+docker/userlist.txt
+docker/pgbouncer.ini
 
 # Terraform lock file (optional - some teams commit this, others don't)
 # .terraform.lock.hcl
@@ -206,13 +205,18 @@ celerybeat.pid
 *.sage.py
 
 # Environments
+backend/.env
+docker/.env
 .env
+.env.local
 .venv
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+backend/.env.local
+frontend/.env.local
 
 # Spyder project settings
 .spyderproject

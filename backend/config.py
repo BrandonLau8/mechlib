@@ -6,9 +6,20 @@ from dotenv import load_dotenv
 from langchain_core.embeddings import Embeddings
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_ollama import OllamaEmbeddings
+from langchain_openai import OpenAI, OpenAIEmbeddings
 
 logger = logging.getLogger(__name__)
-load_dotenv()
+
+# Load .env - try .env.local first (for local dev), fall back to .env (for Docker)
+env_local_path = Path(__file__).parent / '.env.local'
+env_path = Path(__file__).parent / '.env'
+
+if env_local_path.exists():
+    load_dotenv(dotenv_path=env_local_path)
+    logger.info("Loaded .env.local for local development")
+else:
+    load_dotenv(dotenv_path=env_path)
+    logger.info("Loaded .env")
 
 class Config:
     def __init__(self):
@@ -63,8 +74,9 @@ class Config:
         dimensions = {
             'gemini': 768,  # text-embedding-004
             'ollama': 768,  # nomic-embed-text default
+            'openai': 1536, # text-embedding-3-small
         }
-        return dimensions.get(self.embedding_provider.lower(), 768)
+        return dimensions.get(self.embedding_provider.lower(), 1536)
 
     def _get_embeddings(self) -> Embeddings:
         """
@@ -90,10 +102,16 @@ class Config:
                     model=model,
                 )
 
+            case 'openai':
+                logger.info(f"Using OpenAI embeddings: {model}")
+                return OpenAIEmbeddings(
+                    model=model,
+                    api_key=os.getenv('OPENAI_API_KEY')
+                )
             case _:
                 raise ValueError(
                     f"Unknown embedding provider: {provider}. "
-                    f"Supported: 'gemini', 'ollama'"
+                    f"Supported: 'gemini', 'ollama', 'openai'"
                 )
 
 config = Config()

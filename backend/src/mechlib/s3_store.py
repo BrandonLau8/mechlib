@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 import boto3
 from botocore.exceptions import ClientError
 
-from backend.config import config
+from config import config
 
 logger = logging.getLogger(__name__)
 
@@ -49,9 +49,9 @@ class S3_StoreManager:
     def add_files(self, processed_files: list[Path], directory:Optional[str]):
         try:
             for file in processed_files:
-                # If dir uploaded make into s3_key else use file name
+                # If dir uploaded, use directory/filename as s3_key, else use just filename
                 if directory:
-                    s3_key = directory
+                    s3_key = f"{directory}/{file.name}"
                 else:
                     s3_key = file.name
 
@@ -77,11 +77,16 @@ class S3_StoreManager:
 
     def generate_presigned_url(self, s3_uri:str) -> str:
         try:
-            # # Ensure s3_uri is a string
-            # if isinstance(s3_uri, bytes):
-            #     s3_uri = s3_uri.decode('utf-8')
-            #
-            # s3_uri = str(s3_uri)  # Ensure it's a string
+            # Ensure s3_uri is a string (defensive handling for corrupted data)
+            if isinstance(s3_uri, bytes):
+                logger.warning(f"s3_uri is bytes, converting to string: {s3_uri}")
+                s3_uri = s3_uri.decode('utf-8')
+
+            if s3_uri is None:
+                raise ValueError("s3_uri cannot be None")
+
+            s3_uri = str(s3_uri)  # Ensure it's a string
+            logger.info(f"Generating presigned URL for: {s3_uri}")
 
             # Get the file type '.jpg', '.jpeg', '.png', '.webp'
             parsed = urlparse(s3_uri)

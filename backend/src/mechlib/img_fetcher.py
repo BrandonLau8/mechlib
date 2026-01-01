@@ -1,7 +1,7 @@
 import logging
 from pathlib import Path
 
-from backend.src.mechlib.metadata_fetcher import Metadata
+from .metadata_fetcher import Metadata
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +33,7 @@ class ImageFetcher:
     def __init__(self):
         self.metadata_list: list[Metadata] = []
         self.directory:str | None = None
+        self.path_list:list[Path] = []
 
 
 
@@ -58,9 +59,10 @@ class ImageFetcher:
         if path.is_dir():
             self.directory = path.name
             for p in path.rglob('*'):
-                if p.is_file() and path.suffix.lower() in self.SUPPORTED_FORMATS:
+                if p.is_file() and p.suffix.lower() in self.SUPPORTED_FORMATS:
                     metadata = Metadata(p.name)
                     self.metadata_list.append(metadata)
+                    self.path_list.append(p)
 
             logger.info(f"Added {len(self.metadata_list)} images from directory: {str(path)}")
 
@@ -68,6 +70,7 @@ class ImageFetcher:
         elif path.is_file() and path.suffix.lower() in self.SUPPORTED_FORMATS:
             metadata = Metadata(path.name)
             self.metadata_list.append(metadata)
+            self.path_list.append(path)
 
         else:
             logger.error('Could not add Path')

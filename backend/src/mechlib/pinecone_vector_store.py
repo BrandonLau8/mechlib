@@ -7,8 +7,8 @@ from langchain_core.documents import Document
 from langchain_pinecone import PineconeVectorStore
 
 
-from backend.config import config
-from backend.src.mechlib.s3_store import S3_StoreManager
+from config import config
+from .s3_store import S3_StoreManager
 
 logger = logging.getLogger(__name__)
 

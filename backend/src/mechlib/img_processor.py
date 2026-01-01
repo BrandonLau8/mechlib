@@ -2,13 +2,13 @@ import datetime
 import logging
 import subprocess
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 import exiftool
 from exiftool import ExifTool
 
 from langchain_core.documents import Document
 
-from backend.src.mechlib.metadata_fetcher import Metadata
+from .metadata_fetcher import Metadata
 
 logger = logging.getLogger(__name__)
 
@@ -53,24 +53,26 @@ class ImageProcessor:
 
     """
 
-    def __init__(self, metadata_list):
+    def __init__(self, metadata_list, path_list:Optional[list]):
         self.exiftool:ExifTool = exiftool.ExifToolHelper()
         self.metadata_list: list[Metadata] = metadata_list
         self.documents: list[Document] = []
+        self.path_list: Optional[list[Path]] = path_list
 
-    def _get_path(self, path:Path) -> Path | None:
-        for p in self.path_list:
-            if p == path:
-                return path
-        return None
+    # def _get_path(self, path:Path) -> Path | None:
+    #     for p in self.path_list:
+    #         if p == path:
+    #             return path
+    #     return None
 
     def _get_tags(self, processed_files:list[Path]):
         et = self.exiftool
         tags = [
             'FileName',
-            'Description'
+            'Description',
             'Brand',
             'Materials',
+            'Process',
             'Mechanism',
             'Project',
             'Person',
@@ -88,9 +90,9 @@ class ImageProcessor:
         try:
             processed_files = []
             for metadata in self.metadata_list:
-                # Get absolute path to config file
-                config_path = str(Path(__file__).parent.parent / '.ExifTool_config')
-                # logger.info(f'Config path: {config_path}')
+                # Get absolute path to config file (backend/.ExifTool_config)
+                config_path = str(Path(__file__).parent.parent.parent / '.ExifTool_config')
+                logger.info(f'Config path: {config_path}')
 
                 # Use subprocess to run exiftool directly (we know this works from CLI)
                 cmd = [
@@ -99,7 +101,6 @@ class ImageProcessor:
                     f'-XMP-mechlib:Project={metadata.project}',
                     f'-XMP-mechlib:Person={metadata.person}',
                     f'-XMP-mechlib:Brand={metadata.brand}',
-                    f'-XMP-mechlib:Materials={metadata.materials}',
                     f'-XMP-mechlib:Mechanism={metadata.mechanism}',
                     f'-XMP-mechlib:Description={metadata.description}',
                     f'-XMP-mechlib:Timestamp={datetime.datetime.now().astimezone().strftime("%Y:%m:%d %H:%M:%S %Z")}',
@@ -110,6 +111,10 @@ class ImageProcessor:
                 # Add materials (array)
                 for material in metadata.materials:
                     cmd.insert(-2, f"-XMP-mechlib:Materials={material}")
+
+                # Add process (array)
+                for process in metadata.process:
+                    cmd.insert(-2, f"-XMP-mechlib:Process={process}")
 
                 # Add Metadata to each Image
                 # cmd.extend(str(path) for path in self.path_list)
@@ -126,7 +131,7 @@ class ImageProcessor:
                 logger.info('✓ Tags written successfully!')
 
                 # View Metadata
-                self._get_tags(processed_files)
+                # self._get_tags(processed_files)
 
             return processed_files
 
@@ -135,12 +140,18 @@ class ImageProcessor:
             return []
 
     def s3_uris_to_metadata(self, img_data:dict):
+        print(f"DEBUG s3_uris_to_metadata: img_data keys = {list(img_data.keys())}")
+        logger.info(f"s3_uris_to_metadata called with img_data keys: {list(img_data.keys())}")
         for metadata in self.metadata_list:
+            print(f"DEBUG: Looking for filename = {metadata.filename}")
+            logger.info(f"Looking for metadata.filename: {metadata.filename}")
             if img_data.get(metadata.filename):
                 metadata.s3_uri = img_data.get(metadata.filename)
-                logger.info(f's3_uri added in {metadata.filename}')
+                print(f"DEBUG: s3_uri SET to {metadata.s3_uri}")
+                logger.info(f's3_uri added in {metadata.filename}: {metadata.s3_uri}')
             else:
-                logger.warning(f's3_uri not added in {metadata.filename}')
+                print(f"DEBUG: s3_uri NOT FOUND for {metadata.filename}, available: {list(img_data.keys())}")
+                logger.warning(f's3_uri not added in {metadata.filename}. Available keys: {list(img_data.keys())}')
 
     def make_documents(self) -> List[Document]:
         documents = []
@@ -151,10 +162,10 @@ class ImageProcessor:
             for key, value in metadata_dict.items():
                 tag_string += f'{key}:{value}, '
 
-            page_content = f'{metadata['description']} Tags: [{tag_string}]'
+            page_content = f'{metadata.description} Tags: [{tag_string}]'
             document = Document(
                 page_content=page_content,
-                metadata=metadata
+                metadata=metadata_dict
             )
             logger.info(f'Document made {document}')
 
@@ -163,66 +174,104 @@ class ImageProcessor:
 
         return documents
 
-    # def remake_documents(self):
 
-    # def extract_metadata(self, file_path:Path, s3_url:str, s3_uri:str) -> dict[str, Any]:
-    #     try:
-    #         metadata = self.metadata
-    #         logger.info(f'Adding S3 URL: {metadata.s3_url}')
-    #         et = self.exiftool
-    #         # Get all metadata from the image
-    #         for data in et.get_metadata(str(file_path)):
-    #             for img_key, img_value in data.items():
-    #                 if ':' in img_key:
-    #                     img_key = img_key.split(':', 1)
-    #                     img_key = img_key[1]
-    #
-    #                     # Extract title from FileName (without extension)
-    #                     if 'FileName' in img_key:
-    #                         # Remove file extension (.png, .jpg, etc.)
-    #                         metadata["filename"] = Path(img_value).stem
-    #                         logger.info(f'Extracted FileName: {metadata["filename"]}')
-    #
-    #                     # Extract description
-    #                     if 'Description' in img_key:
-    #                         metadata['description'] = img_value
-    #                         logger.info(f'Extracted Description: {metadata["description"]}')
-    #
-    #                     # Extract brand
-    #                     if 'Brand' in img_key:
-    #                         metadata['brand'] = img_value
-    #                         logger.info(f'Extracted Brand: {metadata["brand"]}')
-    #
-    #                     # Extract materials
-    #                     if 'Materials' in img_key:
-    #                         metadata['materials'] = img_value
-    #                         logger.info(f'Extracted Materials: {metadata["materials"]}')
-    #
-    #                     # Extract mechanism
-    #                     if 'Mechanism' in img_key:
-    #                         metadata['mechanism'] = img_value
-    #                         logger.info(f'Extracted Mechanism: {metadata["mechanism"]}')
-    #
-    #                     # Extract project
-    #                     if 'Project' in img_key:
-    #                         metadata['project'] = img_value
-    #                         logger.info(f'Extracted Project: {metadata["project"]}')
-    #
-    #                     # Extract person
-    #                     if 'Person' in img_key:
-    #                         metadata['person'] = img_value
-    #                         logger.info(f'Extracted Person: {metadata["person"]}')
-    #
-    #                     # Extract timestamp
-    #                     if 'Timestamp' in img_key:
-    #                         metadata['timestamp'] = img_value
-    #                         logger.info(f'Extracted Timestamp: {metadata["timestamp"]}')
-    #
-    #         return metadata
-    #     except Exception as e:
-    #         logger.warning(f"Could not extract metadata from {file_path}: {str(e)}")
-    #         return {}
-    #
-    #
+
+    def extract_metadata_from_imgs(self):
+        """Extract XMP metadata from images and update existing Metadata objects."""
+        try:
+            # Get absolute path to config file (backend/.ExifTool_config)
+            config_path = str(Path(__file__).parent.parent.parent / '.ExifTool_config')
+
+            # Use subprocess to run exiftool with config file
+            for file_path in self.path_list:
+                filename = file_path.name
+
+                # Find the corresponding Metadata object in self.metadata_list
+                metadata = None
+                for m in self.metadata_list:
+                    if m.filename == filename:
+                        metadata = m
+                        break
+
+                if not metadata:
+                    logger.warning(f"No Metadata object found for {filename}")
+                    continue
+
+                # Run exiftool with config to read XMP-mechlib tags
+                cmd = [
+                    'exiftool',
+                    '-config', config_path,
+                    '-XMP-mechlib:Description',
+                    '-XMP-mechlib:Brand',
+                    '-XMP-mechlib:Materials',
+                    '-XMP-mechlib:Process',
+                    '-XMP-mechlib:Mechanism',
+                    '-XMP-mechlib:Project',
+                    '-XMP-mechlib:Person',
+                    '-XMP-mechlib:Timestamp',
+                    '-j',  # JSON output for easier parsing
+                    str(file_path)
+                ]
+
+                result = subprocess.run(cmd, capture_output=True, text=True)
+
+                if result.returncode != 0:
+                    logger.error(f'exiftool failed for {filename}: {result.stderr}')
+                    continue
+
+                # Parse JSON output
+                import json
+                data = json.loads(result.stdout)[0]  # First element is the file
+
+                # Update the existing Metadata object
+                if 'Description' in data:
+                    metadata.description = data['Description']
+                    logger.info(f'Extracted Description: {metadata.description}')
+
+                if 'Brand' in data:
+                    metadata.brand = data['Brand']
+                    logger.info(f'Extracted Brand: {metadata.brand}')
+
+                if 'Materials' in data:
+                    # Materials is an array in XMP
+                    materials = data['Materials']
+                    if isinstance(materials, str):
+                        metadata.materials = [materials]
+                    else:
+                        metadata.materials = materials
+                    logger.info(f'Extracted Materials: {metadata.materials}')
+
+                if 'Process' in data:
+                    # Process is an array in XMP
+                    process = data['Process']
+                    if isinstance(process, str):
+                        metadata.process = [process]
+                    else:
+                        metadata.process = process
+                    logger.info(f'Extracted Process: {metadata.process}')
+
+                if 'Mechanism' in data:
+                    metadata.mechanism = data['Mechanism']
+                    logger.info(f'Extracted Mechanism: {metadata.mechanism}')
+
+                if 'Project' in data:
+                    metadata.project = data['Project']
+                    logger.info(f'Extracted Project: {metadata.project}')
+
+                if 'Person' in data:
+                    metadata.person = data['Person']
+                    logger.info(f'Extracted Person: {metadata.person}')
+
+                if 'Timestamp' in data:
+                    metadata.timestamp = data['Timestamp']
+                    logger.info(f'Extracted Timestamp: {metadata.timestamp}')
+
+                logger.info(f'✓ Metadata extracted from {filename}')
+
+        except Exception as e:
+            logger.error(f"Extraction Failed: {str(e)}", exc_info=True)
+
+
+
 
 
