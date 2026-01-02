@@ -1,3 +1,4 @@
+import { useAuth } from '@/contexts/AuthContext'
 import {Field, FieldGroup, FieldLabel, FieldSet} from "@/components/ui/field.tsx";
 import {Input} from "@/components/ui/input.tsx";
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card.tsx";
@@ -47,6 +48,7 @@ export function Processor({
     setPerson,
     onFormClear
 }: ProcessorProps) {
+    const { getAuthHeaders } = useAuth()
     const [isProcessing, setIsProcessing] = useState(false)
     const [processingFiles, setProcessingFiles] = useState<Set<number>>(new Set())
     const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -93,7 +95,11 @@ export function Processor({
             const uploadResponse = await fetch(`${apiUrl}/upload`, {
                 method: 'POST',
                 body: formData,
+                headers: {
+                    ...getAuthHeaders(),
+                },
                 signal: controller.signal,
+
             })
 
             if (!uploadResponse.ok) {
@@ -122,6 +128,7 @@ export function Processor({
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    ...getAuthHeaders(),
                 },
                 body: JSON.stringify(processPayload),
                 signal: controller.signal,

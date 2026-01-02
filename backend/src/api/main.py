@@ -2,11 +2,12 @@ from pathlib import Path
 from typing import Optional
 import shutil
 
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from langchain_core.documents import Document
 from pydantic import BaseModel
 
+from src.api.auth import verify_google_token, create_access_token, get_current_user
 from src.mechlib.img_fetcher import ImageFetcher
 from src.mechlib.img_processor import ImageProcessor
 from src.mechlib.s3_store import S3_StoreManager
@@ -18,12 +19,11 @@ app = FastAPI(title="MechLib Image Processor API")
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins
-    # allow_origins=[
-    #     "http://localhost:5173",  # Vite dev server
-    #     "http://127.0.0.1:5173",  # Alternative localhost
-    # ],
-    allow_credentials=False,  # Must be False when using allow_origins=["*"]
+    allow_origins=[
+        "http://localhost:5173",  # Vite dev server
+        "http://127.0.0.1:5173",  # Alternative localhost
+    ],
+    allow_credentials=True,  # Required for Authorization headers
     allow_methods=["*"],  # Allow all methods (GET, POST, etc.)
     allow_headers=["*"],  # Allow all headers
 )
@@ -35,6 +35,23 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 # ============================================================================
 # Request/Response Models
 # ============================================================================
+
+class GoogleAuthRequest(BaseModel):
+    """Request for Google OAuth authentication"""
+    id_token: str  # Google ID token from frontend
+
+class GoogleAuthResponse(BaseModel):
+    """Response for Google OAuth authentication"""
+    access_token: str
+    token_type: str = "bearer"
+    email: str
+    name: str
+    picture: str
+
+class UserInfoResponse(BaseModel):
+    """Response for user info endpoint"""
+    email: str
+    name: str
 
 class ImageDiscoveryResponse(BaseModel):
     """Response for image discovery endpoint"""
@@ -147,8 +164,58 @@ def read_root():
 
 
 """
+
+@app.post("/auth/google", response_model=GoogleAuthResponse)
+def google_auth(request: GoogleAuthRequest):
+    """
+    Authenticate user with Google OAuth ID token.
+
+    Frontend flow:
+    1. User clicks "Sign in with Google"
+    2. Frontend receives Google ID token
+    3. Frontend sends token to this endpoint
+    4. Backend validates token with Google
+    5. Backend returns JWT for subsequent requests
+
+    Args:
+        request: GoogleAuthRequest with id_token
+
+    Returns:
+        GoogleAuthResponse with JWT access token
+    """
+    # Verify Google token and get user info
+    user_info = verify_google_token(request.id_token)
+
+    # Create JWT access token
+    access_token = create_access_token(
+        email=user_info['email'],
+        name=user_info['name']
+    )
+
+    return GoogleAuthResponse(
+        access_token=access_token,
+        email=user_info['email'],
+        name=user_info['name'],
+        picture=user_info['picture']
+    )
+
+@app.get("/auth/me", response_model=UserInfoResponse)
+def get_user_info(user: dict = Depends(get_current_user)):
+    """
+    Get current authenticated user info.
+
+    Requires: Authorization header with Bearer token
+
+    Returns:
+        UserInfoResponse with user email and name
+    """
+    return UserInfoResponse(
+        email=user['email'],
+        name=user['name']
+    )
+
 @app.post("/upload", response_model=ImageDiscoveryResponse)
-async def upload_images(files: list[UploadFile] = File(...), directory: Optional[str] = None):
+async def upload_images(files: list[UploadFile] = File(...), directory: Optional[str] = None, user:dict=Depends(get_current_user)):
     """
     Button 1: Upload Images from Browser
 
@@ -202,7 +269,7 @@ async def upload_images(files: list[UploadFile] = File(...), directory: Optional
 
 
 @app.post("/process", response_model=ProcessResponse)
-def process_images(request: ProcessRequest):
+def process_images(request: ProcessRequest, user:dict=Depends(get_current_user)):
     """
     Button 2: Process Images
 
@@ -224,6 +291,9 @@ def process_images(request: ProcessRequest):
                     status_code=404,
                     detail=f"File not found: {path_str}"
                 )
+
+        # Override person field with authenticated user email (audit trail)
+        request.person = user['email']
 
         # Create Metadata objects for each path
         # Note: We store the full path in filename for processing,
@@ -318,7 +388,7 @@ def process_images(request: ProcessRequest):
 
 
 @app.post("/search", response_model=SearchResponse)
-def search_images(request: SearchRequest):
+def search_images(request: SearchRequest, user:dict=Depends(get_current_user)):
     """
     Search for images in the vector database using hybrid search (keyword + semantic).
 

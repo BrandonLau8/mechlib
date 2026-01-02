@@ -1595,9 +1595,11 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "boto3" },
+    { name = "cryptography" },
     { name = "dotenv" },
     { name = "fastapi", extra = ["standard"] },
     { name = "fastmcp" },
+    { name = "google-auth" },
     { name = "langchain" },
     { name = "langchain-core" },
     { name = "langchain-google-genai" },
@@ -1610,6 +1612,8 @@ dependencies = [
     { name = "pinecone-client" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pyexiftool" },
+    { name = "pyjwt" },
+    { name = "python-multipart" },
 ]
 
 [package.optional-dependencies]
@@ -1624,9 +1628,11 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "boto3", specifier = ">=1.41.5" },
+    { name = "cryptography", specifier = ">=46.0.3" },
     { name = "dotenv", specifier = ">=0.9.9" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.124.0" },
     { name = "fastmcp", specifier = ">=2.13.2" },
+    { name = "google-auth", specifier = ">=2.45.0" },
     { name = "langchain", specifier = ">=1.0.8" },
     { name = "langchain-core", specifier = ">=1.0.7" },
     { name = "langchain-google-genai", specifier = ">=3.1.0" },
@@ -1640,7 +1646,9 @@ requires-dist = [
     { name = "prompt-toolkit", marker = "extra == 'cli'", specifier = ">=3.0.52" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.3.2" },
     { name = "pyexiftool", specifier = ">=0.5.6" },
+    { name = "pyjwt", specifier = ">=2.10.1" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.0.1" },
+    { name = "python-multipart", specifier = ">=0.0.21" },
     { name = "questionary", marker = "extra == 'cli'", specifier = ">=2.1.1" },
 ]
 provides-extras = ["cli", "dev"]

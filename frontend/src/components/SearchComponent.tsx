@@ -1,3 +1,4 @@
+import { useAuth } from '@/contexts/AuthContext'
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group.tsx"
 import { Search, Loader2, X } from "lucide-react"
 import { useState } from "react"
@@ -64,6 +65,7 @@ export function SearchComponent({
     filteredCount,
     setFilteredCount
 }: SearchComponentProps) {
+    const {getAuthHeaders} = useAuth()
     const [isSearching, setIsSearching] = useState(false)
 
     // Edit/Delete state
@@ -82,6 +84,7 @@ export function SearchComponent({
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
+                    ...getAuthHeaders(),
                 },
                 body: JSON.stringify({
                     s3_uri: updatedImage.s3_uri,
@@ -122,6 +125,7 @@ export function SearchComponent({
             const response = await fetch(`${apiUrl}/delete-image`, {
                 method: 'DELETE',
                 headers: {
+                    ...getAuthHeaders(),
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
@@ -164,6 +168,7 @@ export function SearchComponent({
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    ...getAuthHeaders(),
                 },
                 body: JSON.stringify({
                     query: query.trim(),
@@ -372,7 +377,7 @@ function EditImageDialog({
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-card border rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-lg">
+            <div className="bg-card border rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-lg custom-scrollbar">
                 <div className="sticky top-0 bg-card border-b p-4 flex justify-between items-center">
                     <h3 className="font-semibold text-lg">Edit Image Metadata</h3>
                     <Button

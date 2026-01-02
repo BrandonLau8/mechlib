@@ -114,5 +114,25 @@ class Config:
                     f"Supported: 'gemini', 'ollama', 'openai'"
                 )
 
+    @property
+    def google_client_id(self) -> str:
+        """Google OAuth Client ID"""
+        return os.getenv("GOOGLE_CLIENT_ID", "")
+
+    @property
+    def jwt_secret_key(self) -> str:
+        """JWT secret key for signing tokens"""
+        return os.getenv("JWT_SECRET_KEY", "")
+
+    @property
+    def jwt_algorithm(self) -> str:
+        """JWT algorithm"""
+        return os.getenv("JWT_ALGORITHM", "HS256")
+
+    @property
+    def jwt_expiration_hours(self) -> int:
+        """JWT token expiration in hours"""
+        return int(os.getenv("JWT_EXPIRATION_HOURS", "24"))
+
 config = Config()
 
