@@ -14,42 +14,7 @@ logger = logging.getLogger(__name__)
 
 class ImageProcessor:
     """
-    Process images from the local path or cloud
-
-    _input_metadata: Input metadata of path either directory or image
-    :arg
-    :return answers
-
-    add_metadata: Add metadata to image(s)
-    :arg image: Path
-    :return bool
-
-    _get_metadata: Get the metadata that was added
-    :arg image: Path
-    :return None
-
-    extract_metadata: Extract metadata from image
-    :arg image: Path
-    :return metadata: Dict[str:Any]
-
-    validate_metadata: Validate metadata
-    :arg metadata:Dict[str, Any]
-    :return bool
-
-    make_documents: Turn metadata from image(s) into List of Langchain Documents
-    :arg metadata: Dict[str:Any]
-    :return document: Document | None
-    https://reference.langchain.com/python/langchain_core/documents/#langchain_core.documents.base.Document
-
-    Metadata
-    - title: Image title
-    - sourcefile: Image path
-    - description: Detailed description
-    - brand: Brand/manufacturer name
-    - materials: List of materials or comma-separated string
-    - project: Project name
-    - person: Person's name associated with image
-    - timestamp: Timestamp
+    Embed metadata into images from the local path or cloud
 
     """
 
@@ -87,6 +52,12 @@ class ImageProcessor:
         return self.metadata_list
 
     def metadata_to_imgs(self) -> list[Path]:
+        """
+        Use exiftool to embed metadata into images
+
+        :return:
+            list of processed files
+        """
         try:
             processed_files = []
             for metadata in self.metadata_list:
@@ -136,24 +107,32 @@ class ImageProcessor:
             return processed_files
 
         except Exception as e:
-            logger.error(f"Error adding tags to {str(e)}")
+            logger.error(f"Error adding tags: {str(e)}")
             return []
 
     def s3_uris_to_metadata(self, img_data:dict):
-        print(f"DEBUG s3_uris_to_metadata: img_data keys = {list(img_data.keys())}")
-        logger.info(f"s3_uris_to_metadata called with img_data keys: {list(img_data.keys())}")
+        """
+        Link s3_uri to metadata objects using full file paths
+
+        :arg
+            img_data: {full_file_path: s3_uri}
+        """
         for metadata in self.metadata_list:
-            print(f"DEBUG: Looking for filename = {metadata.filename}")
-            logger.info(f"Looking for metadata.filename: {metadata.filename}")
             if img_data.get(metadata.filename):
                 metadata.s3_uri = img_data.get(metadata.filename)
-                print(f"DEBUG: s3_uri SET to {metadata.s3_uri}")
-                logger.info(f's3_uri added in {metadata.filename}: {metadata.s3_uri}')
+                logger.debug(f's3_uri: {metadata.s3_uri} added in filename:{metadata.filename}')
             else:
-                print(f"DEBUG: s3_uri NOT FOUND for {metadata.filename}, available: {list(img_data.keys())}")
-                logger.warning(f's3_uri not added in {metadata.filename}. Available keys: {list(img_data.keys())}')
+                logger.warning(f'No s3_uri found for filename: {metadata.filename}. Available keys: {list(img_data.keys())}')
+        logger.info(f"Linked {len([m for m in self.metadata_list if m.s3_uri])} S3 URIs to metadata")
+
 
     def make_documents(self) -> List[Document]:
+        """
+        Make documents for vector embeddings
+
+        :return:
+            list of documents
+        """
         documents = []
 
         for metadata in self.metadata_list:

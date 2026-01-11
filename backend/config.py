@@ -134,5 +134,10 @@ class Config:
         """JWT token expiration in hours"""
         return int(os.getenv("JWT_EXPIRATION_HOURS", "24"))
 
+    @property
+    def log_level(self) -> str:
+        """Logging level (DEBUG, INFO, WARNING, ERROR)"""
+        return os.getenv("LOG_LEVEL", "INFO").upper()
+
 config = Config()
 

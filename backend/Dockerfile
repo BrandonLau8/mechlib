@@ -28,4 +28,5 @@ COPY .ExifTool_config /app/.ExifTool_config
 EXPOSE 8000
 
 # Run the FastAPI server with auto-reload for development
-CMD ["uv", "run", "uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# LOG_LEVEL is read from .env file (mounted via env_file in docker-compose)
+CMD ["sh", "-c", "uv run uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload --log-level ${LOG_LEVEL:-info}"]

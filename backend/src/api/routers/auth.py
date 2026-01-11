@@ -1,20 +1,24 @@
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+import logging
+from datetime import datetime, timezone, timedelta
 
 import jwt
-from jwt.exceptions import InvalidTokenError
-
-from fastapi import Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from google.auth.transport import requests
 from google.oauth2 import id_token
+from jwt import InvalidTokenError
 
 from config import config
+from src.api.schemas import GoogleAuthResponse, GoogleAuthRequest, UserInfoResponse
 
 """
 1. Google token verification: https://google-auth.readthedocs.io/en/master/reference/google.oauth2.id_token.html
 2. JWT handling: https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/#handle-jwt-tokens 
 """
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter()
 
 # Security scheme for bearer token
 security = HTTPBearer()
@@ -25,6 +29,9 @@ JWT_ALGORITHM = config.jwt_algorithm
 JWT_EXPIRATION_HOURS = config.jwt_expiration_hours
 GOOGLE_CLIENT_ID = config.google_client_id
 
+# ============================================================================
+# Helper Functions
+# ============================================================================
 
 def verify_google_token(token: str) -> dict:
     """
@@ -129,7 +136,65 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         return {"email": email, "name": name}
 
     except InvalidTokenError as e:
+        # Show Error class name only to avoid potential token fragments
+        logger.debug(f"JWT validation failed: {type(e).__name__}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Invalid authentication token: {str(e)}"
         )
+
+# ============================================================================
+# API Endpoints
+# ============================================================================
+
+@router.post("/google", response_model=GoogleAuthResponse)
+def google_auth(request: GoogleAuthRequest):
+    """
+    Authenticate user with Google OAuth ID token.
+
+    Frontend flow:
+    1. User clicks "Sign in with Google"
+    2. Frontend receives Google ID token
+    3. Frontend sends token to this endpoint
+    4. Backend validates token with Google
+    5. Backend returns JWT for subsequent requests
+
+    Args:
+        request: GoogleAuthRequest with id_token
+
+    Returns:
+        GoogleAuthResponse with JWT access token
+    """
+    # Verify Google token and get user info
+    user_info = verify_google_token(request.id_token)
+
+    # Create JWT access token
+    access_token = create_access_token(
+        email=user_info['email'],
+        name=user_info['name']
+    )
+
+    logger.info(f"User Authenticated: {user_info['email']}")
+    logger.debug(f"Token created for {user_info['email'][:3]}")
+
+    return GoogleAuthResponse(
+        access_token=access_token,
+        email=user_info['email'],
+        name=user_info['name'],
+        picture=user_info['picture']
+    )
+
+@router.get("/me", response_model=UserInfoResponse)
+def get_user_info(user: dict = Depends(get_current_user)):
+    """
+    Get current authenticated user info.
+
+    Requires: Authorization header with Bearer token
+
+    Returns:
+        UserInfoResponse with user email and name
+    """
+    return UserInfoResponse(
+        email=user['email'],
+        name=user['name']
+    )

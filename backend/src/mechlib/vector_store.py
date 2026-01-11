@@ -173,13 +173,12 @@ class VectorStoreManager:
         Returns:
             List of (Document, combined_score) tuples, sorted by score (lower is better)
         """
-        from collections import defaultdict
-
         # Get more results from each search to ensure good coverage
         fetch_k = k * 3
 
         # Get semantic search results (cosine distance: 0=identical, 2=opposite)
-        semantic_results = self.vector_store.similarity_search_with_score(query, k=fetch_k)
+        semantic_results: list[tuple[Document, float]]= self.vector_store.similarity_search_with_score(query, k=fetch_k)
+        logger.debug(f"Semantic search results returned {len(semantic_results)} results for {query}")
 
         # Build filename -> (doc, semantic_rank, distance) mapping
         semantic_map = {}
@@ -191,10 +190,12 @@ class VectorStoreManager:
         # Get keyword search results
         keyword_filenames = self._keyword_search(query, k=fetch_k)
         keyword_set = set(keyword_filenames)
+        logger.debug(f"Keyword search returned {len(keyword_filenames)} results")
 
         # Combine keyword and semantic scores
         # Strategy: Use semantic distances but boost keyword matches
         hybrid_scores = {}
+        boosted_count = 0
 
         # Process all semantic results
         for filename, (doc, rank, distance) in semantic_map.items():
@@ -203,6 +204,7 @@ class VectorStoreManager:
             # Apply keyword boost if this file has a keyword match
             if filename in keyword_set:
                 keyword_rank = keyword_filenames.index(filename) + 1
+                boosted_count += 1
                 # Reduce distance based on keyword match (better rank = more reduction)
                 keyword_boost = 0.3 * (1 / keyword_rank)  # Up to 0.3 reduction
                 final_distance = max(0.0, base_distance - keyword_boost)
@@ -224,18 +226,23 @@ class VectorStoreManager:
             [(item['doc'], item['distance']) for item in hybrid_scores.values()],
             key=lambda x: x[1]
         )
-
+        logger.info(f"Hybrid search for '{query}': {len(sorted_results)} results ({boosted_count} keyword-boosted)")
         return sorted_results[:k]
 
     def _keyword_search(self, query: str, k: int):
-        """Perform keyword search and return list of filenames."""
+        """
+        Perform keyword search and return list of filenames.
+        """
         import psycopg
 
         conn_string = config.psql_connection_string.replace('postgresql+psycopg://', 'postgresql://')
-        conn = psycopg.connect(conn_string)
-        cur = conn.cursor()
+        conn = None
+        cur = None
 
         try:
+            conn = psycopg.connect(conn_string)
+            cur = conn.cursor()
+
             cur.execute(f"""
                 SELECT langchain_metadata->>'filename', ts_rank(search_vector, plainto_tsquery('english', %s)) as rank
                 FROM {self.TABLE_NAME}
@@ -245,10 +252,19 @@ class VectorStoreManager:
             """, (query, query, k))
 
             results = [row[0] for row in cur.fetchall() if row[0]]
+            logger.debug(f"Keyword search for '{query}' returned {len(results)}/{k} results")
+
             return results
+
+        except psycopg.Error as e:
+            logger.error(f"Keyword search failed: {e}")
+            return []  # Return empty list on error
+
         finally:
-            cur.close()
-            conn.close()
+            if cur is not None:
+                cur.close()
+            if conn is not None:
+                conn.close()
 
     def search(self):
 
