@@ -46,7 +46,14 @@ class VectorStoreManager:
         logger.info(f"Initialized PGVectorStore with table '{self.TABLE_NAME}'")
 
     def _init_table(self):
-        """Initialize the vectorstore table with proper schema."""
+        """
+        Initialize the vectorstore table with proper schema.
+          - langchain_id - Unique sticker number for each photo
+          - content - Description of the photo
+          - embedding - Secret math code (1536 numbers) that represents what's in the photo
+          - langchain_metadata - Label with details (brand, materials, etc.)
+
+        """
         try:
             self.engine.init_vectorstore_table(
                 table_name=self.TABLE_NAME,
@@ -61,7 +68,30 @@ class VectorStoreManager:
         self._init_fulltext_search()
 
     def _init_fulltext_search(self):
-        """Add full-text search column and index for keyword search."""
+        """
+        Add full-text search column and index for keyword search.
+
+          Without this code:
+
+          User: "Find red switches"
+          Computer:
+            1. Open photo 1, read all text, check if it says "red" or "switch" ❌
+            2. Open photo 2, read all text, check if it says "red" or "switch" ❌
+            3. ... repeat for 10,000 photos
+            4. Takes 10 seconds!
+
+          With this code:
+
+          User: "Find red switches"
+          Computer:
+            1. Look at search_vector index
+            2. "red" → Photos #5, #23, #89
+            3. "switch" → Photos #5, #47, #89
+            4. Intersection: #5, #89
+            5. Return those 2 photos
+            6. Takes 0.01 seconds!
+
+        """
         import psycopg
 
         conn = None
@@ -72,13 +102,22 @@ class VectorStoreManager:
             conn = psycopg.connect(conn_string)
             cur = conn.cursor()
 
-            # Add search_vector column
+            # Add search_vector column for keywords
             cur.execute(f"""
                 ALTER TABLE {self.TABLE_NAME}
                 ADD COLUMN IF NOT EXISTS search_vector tsvector;
             """)
 
-            # Create/replace trigger function
+            """
+            Create/replace trigger function
+              1. Read description: "Red mechanical keyboard switch"
+              2. Read brand: "Cherry"
+              3. Read materials: "Plastic, Metal"
+              4. Combine: "red mechanical keyboard switch cherry plastic metal"
+              5. Process words: "red mechan keyboard switch cherri plastic metal"
+                 (removes boring words like "the", "a", stems words)
+              6. Save to search_vector column
+            """
             cur.execute(f"""
                 CREATE OR REPLACE FUNCTION {self.TABLE_NAME}_search_update()
                 RETURNS trigger AS $$
@@ -98,6 +137,7 @@ class VectorStoreManager:
             """)
 
             # Drop and recreate trigger
+            # Every time someone adds or updates a photo, automatically run the trigger"
             cur.execute(f"""
                 DROP TRIGGER IF EXISTS {self.TABLE_NAME}_search_trigger ON {self.TABLE_NAME};
             """)
@@ -108,6 +148,7 @@ class VectorStoreManager:
             """)
 
             # Update existing rows
+            # Go through old images that don't have search keywords yet and add them"
             cur.execute(f"""
                 UPDATE {self.TABLE_NAME}
                 SET search_vector = to_tsvector('english',
@@ -122,7 +163,13 @@ class VectorStoreManager:
                 WHERE search_vector IS NULL;
             """)
 
-            # Create GIN index for fast full-text search
+            """
+            Create GIN index for fast full-text search
+            Creates a super-fast lookup table for keyword searches
+              "plastic" → Photos #5, #12, #47, #89
+              "metal" → Photos #12, #23, #47, #91
+              "red" → Photos #5, #23, #89
+            """
             cur.execute(f"""
                 CREATE INDEX IF NOT EXISTS {self.TABLE_NAME}_search_idx
                 ON {self.TABLE_NAME} USING GIN(search_vector);
